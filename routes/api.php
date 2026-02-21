@@ -6,6 +6,7 @@ use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ExamController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\CoursesController;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -36,4 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/applicants/{id}/reject', [ApprovalController::class, 'reject']);
     Route::post('/applicants/{id}/enroll', [ApprovalController::class, 'enroll']);
 
+    // courses
+      Route::get('/courses', [CoursesController::class, 'index']);
+    Route::get('/courses/{id}', [CoursesController::class, 'show']);
+    Route::post('/courses', [CoursesController::class, 'store']);
+    Route::put('/courses/{id}', [CoursesController::class, 'update']);
+    Route::delete('/courses/{id}', [CoursesController::class, 'destroy']);
 });
