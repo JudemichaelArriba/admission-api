@@ -31,4 +31,18 @@ class DocumentController extends Controller
 
         return response()->json($document, 201);
     }
+
+
+    // GET /api/applicants/{id}/documents
+    public function index($id)
+    {
+        $applicant = Applicant::with('documents')->find($id);
+        if (!$applicant) {
+            return response()->json(['message' => 'Applicant not found'], 404);
+        }
+        return response()->json($applicant->documents);
+    }
+
+
+
 }

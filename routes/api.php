@@ -13,22 +13,27 @@ Route::get('/user', function (Request $request) {
 
 Route::middleware('auth:sanctum')->group(function () {
 
-
+    // Applicant
+    // Filter by status
+    Route::get('/applicants/filter', [ApplicantController::class, 'filterByStatus']);
+   
     Route::get('/applicants', [ApplicantController::class, 'index']);
     Route::get('/applicants/{id}', [ApplicantController::class, 'show']);
     Route::post('/applicants', [ApplicantController::class, 'store']);
+    Route::put('/applicants/{id}', [ApplicantController::class, 'update']);
+    Route::delete('/applicants/{id}', [ApplicantController::class, 'destroy']);
 
     // Documents
     Route::post('/applicants/{id}/documents', [DocumentController::class, 'upload']);
-
+    Route::get('/applicants/{id}/documents', [DocumentController::class, 'index']);
     // Exams
     Route::post('/applicants/{id}/exams', [ExamController::class, 'schedule']);
     Route::post('/applicants/{id}/exams/evaluate', [ExamController::class, 'evaluate']);
+    Route::get('/applicants/{id}/exams', [ExamController::class, 'index']);
 
     // Approval / Enrollment
     Route::post('/applicants/{id}/approve', [ApprovalController::class, 'approve']);
     Route::post('/applicants/{id}/reject', [ApprovalController::class, 'reject']);
     Route::post('/applicants/{id}/enroll', [ApprovalController::class, 'enroll']);
-
 
 });

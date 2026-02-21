@@ -48,4 +48,14 @@ class ExamController extends Controller
 
         return response()->json($exam);
     }
+
+    // GET /api/applicants/{id}/exams
+    public function index($id)
+    {
+        $applicant = Applicant::with('exams')->find($id);
+        if (!$applicant) {
+            return response()->json(['message' => 'Applicant not found'], 404);
+        }
+        return response()->json($applicant->exams);
+    }
 }
