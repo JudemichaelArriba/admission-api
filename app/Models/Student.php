@@ -5,23 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class ApplicantDocument extends Model
+class Student extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'applicant_id',
-        'document_type',
-        'file_path',
-        'disk',
-        'original_filename',
-        'mime_type',
-        'file_size',
-        'sha256',
-        'scan_status',
+        'student_number',
+        'enrolled_at',
     ];
 
-    // Each document belongs to an applicant
+    protected $casts = [
+        'enrolled_at' => 'datetime',
+    ];
+
     public function applicant()
     {
         return $this->belongsTo(Applicant::class);
