@@ -13,16 +13,11 @@ class ApplicantController extends Controller
     {
         $user = $request->user();
 
-        $validated = $request->validate([
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
-
         if ($user->hasRole(UserRole::APPLICANT)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $perPage = (int) ($validated['per_page'] ?? 15);
-        $applicants = Applicant::with('course')->latest('id')->paginate($perPage);
+        $applicants = Applicant::with('course')->latest('id')->get();
 
         return response()->json($applicants);
     }
@@ -153,14 +148,12 @@ class ApplicantController extends Controller
                 Applicant::STATUS_REJECTED,
                 Applicant::STATUS_ENROLLED,
             ])],
-            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $perPage = (int) ($validated['per_page'] ?? 15);
         $applicants = Applicant::with('course')
             ->where('status', $validated['status'])
             ->latest('id')
-            ->paginate($perPage);
+            ->get();
 
         return response()->json($applicants);
     }

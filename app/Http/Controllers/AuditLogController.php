@@ -18,10 +18,7 @@ class AuditLogController extends Controller
             'action' => 'nullable|string|max:80',
             'target_type' => 'nullable|string|max:60',
             'target_id' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
-
-        $perPage = (int) ($validated['per_page'] ?? 25);
 
         $query = AuditLog::with('actor')->latest('id');
         if (isset($validated['action'])) {
@@ -34,6 +31,6 @@ class AuditLogController extends Controller
             $query->where('target_id', $validated['target_id']);
         }
 
-        return response()->json($query->paginate($perPage));
+        return response()->json($query->get());
     }
 }

@@ -11,12 +11,7 @@ class CoursesController extends Controller
 {
     public function index(Request $request)
     {
-        $validated = $request->validate([
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
-
-        $perPage = (int) ($validated['per_page'] ?? 20);
-        return response()->json(Course::latest('id')->paginate($perPage), 200);
+        return response()->json(Course::latest('id')->get(), 200);
     }
 
     public function show(int $id)

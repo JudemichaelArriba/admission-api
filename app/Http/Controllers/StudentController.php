@@ -14,12 +14,7 @@ class StudentController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validate([
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
-
-        $perPage = (int) ($validated['per_page'] ?? 15);
-        $students = Student::with(['applicant.course'])->latest('id')->paginate($perPage);
+        $students = Student::with(['applicant.course'])->latest('id')->get();
         return response()->json($students);
     }
 
