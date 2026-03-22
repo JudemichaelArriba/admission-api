@@ -24,7 +24,7 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    // ✅ Correctly define casts as a property
+
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
