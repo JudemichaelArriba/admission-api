@@ -5,26 +5,16 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Applicant;
 use App\Models\User;
+use App\Http\Requests\ApplicantSignupRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
-    public function applicantSignup(Request $request)
+    public function applicantSignup(ApplicantSignupRequest $request)
     {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'email' => 'required|email|max:255|unique:users,email|unique:applicants,email',
-            'phone_number' => 'nullable|string|max:20',
-            'date_of_birth' => 'nullable|date',
-            'address' => 'nullable|string',
-            'course_id' => 'required|exists:courses,id',
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-        ]);
+        $validated = $request->validated();
 
         $result = DB::transaction(function () use ($validated, $request) {
             $user = User::create([

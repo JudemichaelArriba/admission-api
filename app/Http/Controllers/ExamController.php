@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Applicant;
 use App\Models\EntranceExam;
+use App\Http\Requests\ScheduleEntranceExamRequest;
+use App\Http\Requests\EvaluateEntranceExamRequest;
 use Illuminate\Http\Request;
 
 class ExamController extends Controller
 {
-    public function schedule(Request $request, int $id)
+    public function schedule(ScheduleEntranceExamRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -24,9 +26,7 @@ class ExamController extends Controller
             return response()->json(['message' => 'Only pending applicants can be scheduled for exam'], 409);
         }
 
-        $validated = $request->validate([
-            'exam_date' => 'required|date|after_or_equal:today',
-        ]);
+        $validated = $request->validated();
 
         $exam = EntranceExam::create([
             'applicant_id' => $applicant->id,
@@ -42,7 +42,7 @@ class ExamController extends Controller
         return response()->json($exam, 201);
     }
 
-    public function evaluate(Request $request, int $id)
+    public function evaluate(EvaluateEntranceExamRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -66,9 +66,7 @@ class ExamController extends Controller
             return response()->json(['message' => 'Only scheduled exams can be evaluated'], 409);
         }
 
-        $validated = $request->validate([
-            'exam_score' => 'required|numeric|min:0|max:100',
-        ]);
+        $validated = $request->validated();
 
         $exam->update([
             'exam_score' => $validated['exam_score'],

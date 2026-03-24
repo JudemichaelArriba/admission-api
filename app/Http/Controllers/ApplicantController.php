@@ -6,6 +6,9 @@ use App\Enums\UserRole;
 use App\Models\Applicant;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Http\Requests\CreateApplicantRequest;
+use App\Http\Requests\UpdateApplicantRequest;
+
 
 class ApplicantController extends Controller
 {
@@ -58,23 +61,13 @@ class ApplicantController extends Controller
 
 
     // adding a applicants but not publivly only admin users
-    public function store(Request $request)
+    public function store(CreateApplicantRequest $request)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'email' => 'required|email|max:255|unique:applicants,email',
-            'phone_number' => 'nullable|string|max:20',
-            'date_of_birth' => 'nullable|date',
-            'address' => 'nullable|string',
-            'course_id' => 'required|exists:courses,id',
-            'status' => 'prohibited',
-        ]);
+        $validated = $request->validated();
 
         $applicant = Applicant::create($validated);
         $this->logAudit($request, 'applicant_created', 'applicant', $applicant->id);
@@ -82,7 +75,7 @@ class ApplicantController extends Controller
         return response()->json($applicant, 201);
     }
 
-    public function update(Request $request, int $id)
+    public function update(UpdateApplicantRequest $request, int $id)
     {
         $applicant = Applicant::find($id);
         if (!$applicant) {
@@ -93,22 +86,7 @@ class ApplicantController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validate([
-            'first_name' => 'sometimes|string|max:100',
-            'last_name' => 'sometimes|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'email' => [
-                'sometimes',
-                'email',
-                'max:255',
-                Rule::unique('applicants', 'email')->ignore($id),
-            ],
-            'phone_number' => 'nullable|string|max:20',
-            'date_of_birth' => 'nullable|date',
-            'address' => 'nullable|string',
-            'course_id' => 'sometimes|exists:courses,id',
-            'status' => 'prohibited',
-        ]);
+        $validated = $request->validated();
 
         $applicant->update($validated);
         $this->logAudit($request, 'applicant_updated', 'applicant', $applicant->id, [

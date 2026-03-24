@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Course;
+use App\Http\Requests\CreateCourseRequest;
+use App\Http\Requests\UpdateCourseRequest;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class CoursesController extends Controller
 {
@@ -24,17 +25,13 @@ class CoursesController extends Controller
         return response()->json($course, 200);
     }
 
-    public function store(Request $request)
+    public function store(CreateCourseRequest $request)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'nullable|string|max:50|unique:courses,code',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $course = Course::create($validated);
         $this->logAudit($request, 'course_created', 'course', $course->id);
@@ -42,7 +39,7 @@ class CoursesController extends Controller
         return response()->json($course, 201);
     }
 
-    public function update(Request $request, int $id)
+    public function update(UpdateCourseRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -53,11 +50,7 @@ class CoursesController extends Controller
             return response()->json(['message' => 'Course not found'], 404);
         }
 
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'code' => ['nullable', 'string', 'max:50', Rule::unique('courses', 'code')->ignore($id)],
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $course->update($validated);
         $this->logAudit($request, 'course_updated', 'course', $course->id, [

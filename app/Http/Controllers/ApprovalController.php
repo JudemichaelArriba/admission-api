@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Applicant;
 use App\Models\Student;
+use App\Http\Requests\RejectApplicantRequest;
+use App\Http\Requests\EnrollApplicantRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -57,15 +59,13 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function reject(Request $request, int $id)
+    public function reject(RejectApplicantRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validate([
-            'reason' => 'required|string|max:500',
-        ]);
+        $validated = $request->validated();
 
         $applicant = Applicant::find($id);
         if (!$applicant) {
@@ -89,15 +89,13 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function enroll(Request $request, int $id)
+    public function enroll(EnrollApplicantRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validate([
-            'enrolled_at' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
         $applicant = Applicant::with('student')->find($id);
         if (!$applicant) {
