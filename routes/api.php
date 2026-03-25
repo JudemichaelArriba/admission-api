@@ -32,7 +32,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('applicants')->controller(ApplicantController::class)->group(function () {
-        Route::get('/filter', 'filterByStatus');
         Route::get('/', 'index');
         Route::get('/{id}', 'show');
         Route::post('/', 'store')->middleware('role:admin');
@@ -47,15 +46,12 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('applicants/{id}/exams')->controller(ExamController::class)->group(function () {
-        Route::post('/', 'schedule')->middleware('role:admin');
-        Route::post('/evaluate', 'evaluate')->middleware('role:admin');
+        Route::post('/', 'manage')->middleware('role:admin');
         Route::get('/', 'index');
     });
 
     Route::prefix('applicants/{id}')->controller(ApprovalController::class)->group(function () {
-        Route::post('/approve', 'approve')->middleware('role:admin');
-        Route::post('/reject', 'reject')->middleware('role:admin');
-        Route::post('/enroll', 'enroll')->middleware('role:admin');
+        Route::post('/status', 'updateStatus')->middleware('role:admin');
     });
 
     Route::prefix('courses')->controller(CoursesController::class)->group(function () {
@@ -124,4 +120,3 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //     Route::get('/audit-logs', [AuditLogController::class, 'index'])->middleware('role:admin');
 // });
-

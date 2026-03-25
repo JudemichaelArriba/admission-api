@@ -4,15 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Applicant;
+use App\Http\Requests\ApplicantIndexRequest;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use App\Http\Requests\CreateApplicantRequest;
 use App\Http\Requests\UpdateApplicantRequest;
 
 
 class ApplicantController extends Controller
 {
-    public function index(Request $request)
+    public function index(ApplicantIndexRequest $request)
     {
         $user = $request->user();
 
@@ -20,9 +20,13 @@ class ApplicantController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $applicants = Applicant::with('course')->latest('id')->get();
+        $validated = $request->validated();
+        $query = Applicant::with('course')->latest('id');
+        if (isset($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
 
-        return response()->json($applicants);
+        return response()->json($query->get());
     }
 
     public function show(Request $request, int $id)
@@ -111,29 +115,6 @@ class ApplicantController extends Controller
         $this->logAudit($request, 'applicant_deleted', 'applicant', $id);
 
         return response()->json(['message' => 'Applicant deleted']);
-    }
-
-    public function filterByStatus(Request $request)
-    {
-        if ($request->user()->hasRole(UserRole::APPLICANT)) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $validated = $request->validate([
-            'status' => ['required', Rule::in([
-                Applicant::STATUS_PENDING,
-                Applicant::STATUS_APPROVED,
-                Applicant::STATUS_REJECTED,
-                Applicant::STATUS_ENROLLED,
-            ])],
-        ]);
-
-        $applicants = Applicant::with('course')
-            ->where('status', $validated['status'])
-            ->latest('id')
-            ->get();
-
-        return response()->json($applicants);
     }
 
     private function canViewApplicant(Request $request, Applicant $applicant): bool

@@ -5,13 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Applicant;
 use App\Models\EntranceExam;
-use App\Http\Requests\ScheduleEntranceExamRequest;
-use App\Http\Requests\EvaluateEntranceExamRequest;
+use App\Http\Requests\ManageEntranceExamRequest;
 use Illuminate\Http\Request;
 
 class ExamController extends Controller
 {
-    public function schedule(ScheduleEntranceExamRequest $request, int $id)
+    public function manage(ManageEntranceExamRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -20,41 +19,31 @@ class ExamController extends Controller
         $applicant = Applicant::find($id);
         if (!$applicant) {
             return response()->json(['message' => 'Applicant not found'], 404);
-        }
-
-        if ($applicant->status !== Applicant::STATUS_PENDING) {
-            return response()->json(['message' => 'Only pending applicants can be scheduled for exam'], 409);
         }
 
         $validated = $request->validated();
-
-        $exam = EntranceExam::create([
-            'applicant_id' => $applicant->id,
-            'exam_date' => $validated['exam_date'],
-            'status' => 'scheduled',
-        ]);
-
-        $this->logAudit($request, 'entrance_exam_scheduled', 'entrance_exam', $exam->id, [
-            'applicant_id' => $applicant->id,
-            'exam_date' => $exam->exam_date,
-        ]);
-
-        return response()->json($exam, 201);
-    }
-
-    public function evaluate(EvaluateEntranceExamRequest $request, int $id)
-    {
-        if (!$request->user()->hasRole(UserRole::ADMIN)) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $applicant = Applicant::find($id);
-        if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found'], 404);
-        }
+        $action = $validated['action'];
 
         if ($applicant->status !== Applicant::STATUS_PENDING) {
-            return response()->json(['message' => 'Only pending applicants can be evaluated'], 409);
+            $message = $action === 'evaluate'
+                ? 'Only pending applicants can be evaluated'
+                : 'Only pending applicants can be scheduled for exam';
+            return response()->json(['message' => $message], 409);
+        }
+
+        if ($action === 'schedule') {
+            $exam = EntranceExam::create([
+                'applicant_id' => $applicant->id,
+                'exam_date' => $validated['exam_date'],
+                'status' => 'scheduled',
+            ]);
+
+            $this->logAudit($request, 'entrance_exam_scheduled', 'entrance_exam', $exam->id, [
+                'applicant_id' => $applicant->id,
+                'exam_date' => $exam->exam_date,
+            ]);
+
+            return response()->json($exam, 201);
         }
 
         $exam = EntranceExam::where('applicant_id', $id)->latest('exam_date')->latest('id')->first();
@@ -65,8 +54,6 @@ class ExamController extends Controller
         if ($exam->status !== 'scheduled') {
             return response()->json(['message' => 'Only scheduled exams can be evaluated'], 409);
         }
-
-        $validated = $request->validated();
 
         $exam->update([
             'exam_score' => $validated['exam_score'],

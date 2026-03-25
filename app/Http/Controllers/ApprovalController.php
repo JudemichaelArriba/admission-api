@@ -5,8 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Applicant;
 use App\Models\Student;
-use App\Http\Requests\RejectApplicantRequest;
-use App\Http\Requests\EnrollApplicantRequest;
+use App\Http\Requests\UpdateApplicantStatusRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,12 +16,28 @@ class ApprovalController extends Controller
         'report_card',
     ];
 
-    public function approve(Request $request, int $id)
+    public function updateStatus(UpdateApplicantStatusRequest $request, int $id)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        $validated = $request->validated();
+
+        switch ($validated['action']) {
+            case 'approve':
+                return $this->approveApplicant($request, $id);
+            case 'reject':
+                return $this->rejectApplicant($request, $id, $validated['reason'] ?? null);
+            case 'enroll':
+                return $this->enrollApplicant($request, $id, $validated['enrolled_at'] ?? null);
+            default:
+                return response()->json(['message' => 'Invalid action'], 422);
+        }
+    }
+
+    private function approveApplicant(Request $request, int $id)
+    {
         $applicant = Applicant::with('documents', 'exams')->find($id);
         if (!$applicant) {
             return response()->json(['message' => 'Applicant not found'], 404);
@@ -59,14 +74,8 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function reject(RejectApplicantRequest $request, int $id)
+    private function rejectApplicant(Request $request, int $id, ?string $reason)
     {
-        if (!$request->user()->hasRole(UserRole::ADMIN)) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $validated = $request->validated();
-
         $applicant = Applicant::find($id);
         if (!$applicant) {
             return response()->json(['message' => 'Applicant not found'], 404);
@@ -76,11 +85,10 @@ class ApprovalController extends Controller
             return response()->json(['message' => 'This applicant cannot be rejected from the current state'], 409);
         }
 
-        DB::transaction(function () use ($request, $applicant, $validated) {
+        DB::transaction(function () use ($request, $applicant, $reason) {
             $applicant->forceFill(['status' => Applicant::STATUS_REJECTED])->save();
-            $this->logAudit($request, 'applicant_rejected', 'applicant', $applicant->id, [
-                'reason' => $validated['reason'],
-            ]);
+            $context = $reason !== null ? ['reason' => $reason] : [];
+            $this->logAudit($request, 'applicant_rejected', 'applicant', $applicant->id, $context);
         });
 
         return response()->json([
@@ -89,14 +97,8 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function enroll(EnrollApplicantRequest $request, int $id)
+    private function enrollApplicant(Request $request, int $id, ?string $enrolledAt)
     {
-        if (!$request->user()->hasRole(UserRole::ADMIN)) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $validated = $request->validated();
-
         $applicant = Applicant::with('student')->find($id);
         if (!$applicant) {
             return response()->json(['message' => 'Applicant not found'], 404);
@@ -110,12 +112,12 @@ class ApprovalController extends Controller
             return response()->json(['message' => 'Applicant is already linked to a student record'], 409);
         }
 
-        $student = DB::transaction(function () use ($request, $applicant, $validated) {
-            $enrolledAt = $validated['enrolled_at'] ?? now()->toDateTimeString();
+        $student = DB::transaction(function () use ($request, $applicant, $enrolledAt) {
+            $effectiveEnrolledAt = $enrolledAt ?? now()->toDateTimeString();
             $student = Student::create([
                 'applicant_id' => $applicant->id,
                 'student_number' => $this->generateStudentNumber($applicant->id),
-                'enrolled_at' => $enrolledAt,
+                'enrolled_at' => $effectiveEnrolledAt,
             ]);
 
             $applicant->forceFill(['status' => Applicant::STATUS_ENROLLED])->save();
