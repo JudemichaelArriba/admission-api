@@ -5,12 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Applicant;
 use App\Models\ApplicantDocument;
+use App\Http\Requests\UploadApplicantDocumentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
-    public function upload(Request $request, int $id)
+    public function upload(UploadApplicantDocumentRequest $request, int $id)
     {
         $applicant = Applicant::find($id);
         if (!$applicant) {
@@ -25,10 +26,7 @@ class DocumentController extends Controller
             return response()->json(['message' => 'Documents can only be uploaded while application is pending'], 409);
         }
 
-        $validated = $request->validate([
-            'document_type' => 'required|string|max:50',
-            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ]);
+        $validated = $request->validated();
 
         $uploaded = $request->file('file');
         $disk = 'local';
