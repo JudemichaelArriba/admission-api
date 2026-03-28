@@ -69,7 +69,7 @@ class AuthController extends Controller
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
-
+        $user->tokens()->delete();
         $token = $user->createToken('auth-token')->plainTextToken;
         $applicantId = $user->applicant?->id;
 
