@@ -33,7 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('applicants')->controller(ApplicantController::class)->group(function () {
         Route::get('/', 'index');
-        Route::get('/{id}', 'show');
+        Route::get('/{id}', 'show')-> middleware('role:admin');
         Route::post('/', 'store')->middleware('role:admin');
         Route::put('/{id}', 'update');
         Route::delete('/{id}', 'destroy')->middleware('role:admin');

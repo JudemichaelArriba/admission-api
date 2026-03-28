@@ -31,6 +31,10 @@ class ApplicantController extends Controller
 
     public function show(Request $request, int $id)
     {
+        if (!$request->user()->hasRole(UserRole::ADMIN)) {
+            return response()->json(['message' => 'Forbidden', 403]);
+        }
+
         $applicant = Applicant::with('course', 'documents', 'exams', 'student')->find($id);
         if (!$applicant) {
             return response()->json(['message' => 'Applicant not found'], 404);
@@ -50,7 +54,7 @@ class ApplicantController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $applicant = Applicant::with('course', 'documents', 'exams', 'student')
+        $applicant = Applicant::with(['course', 'documents', 'exams'])
             ->where('user_id', $user->id)
             ->first();
 
@@ -64,7 +68,7 @@ class ApplicantController extends Controller
 
 
 
-    // adding a applicants but not publivly only admin users
+    // adding a applicants but not publicly only admin users
     public function store(CreateApplicantRequest $request)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
