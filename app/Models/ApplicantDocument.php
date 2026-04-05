@@ -12,8 +12,7 @@ class ApplicantDocument extends Model
     protected $fillable = [
         'applicant_id',
         'document_type',
-        'file_path',
-        'disk',
+        'file_content', 
         'original_filename',
         'mime_type',
         'file_size',
@@ -21,7 +20,9 @@ class ApplicantDocument extends Model
         'scan_status',
     ];
 
-    // Each document belongs to an applicant
+    // This prevents the heavy binary data from being sent in every API call
+    protected $hidden = ['file_content'];
+
     public function applicant()
     {
         return $this->belongsTo(Applicant::class);
