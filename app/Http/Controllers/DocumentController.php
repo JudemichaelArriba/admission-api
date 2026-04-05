@@ -67,32 +67,32 @@ class DocumentController extends Controller
         return response()->json($applicant->documents);
     }
 
-    public function download(Request $request, int $id, int $documentId)
-    {
-        $applicant = Applicant::find($id);
-        if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found'], 404);
-        }
+    // public function download(Request $request, int $id, int $documentId)
+    // {
+    //     $applicant = Applicant::find($id);
+    //     if (!$applicant) {
+    //         return response()->json(['message' => 'Applicant not found'], 404);
+    //     }
 
-        if (!$this->canAccessApplicantDocuments($request, $applicant)) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+    //     if (!$this->canAccessApplicantDocuments($request, $applicant)) {
+    //         return response()->json(['message' => 'Forbidden'], 403);
+    //     }
 
-        $document = ApplicantDocument::where('applicant_id', $id)->find($documentId);
-        if (!$document) {
-            return response()->json(['message' => 'Document not found'], 404);
-        }
+    //     $document = ApplicantDocument::where('applicant_id', $id)->find($documentId);
+    //     if (!$document) {
+    //         return response()->json(['message' => 'Document not found'], 404);
+    //     }
 
-        if (!Storage::disk($document->disk)->exists($document->file_path)) {
-            return response()->json(['message' => 'Stored file not found'], 404);
-        }
+    //     if (!Storage::disk($document->disk)->exists($document->file_path)) {
+    //         return response()->json(['message' => 'Stored file not found'], 404);
+    //     }
 
-        $this->logAudit($request, 'applicant_document_downloaded', 'applicant_document', $document->id, [
-            'applicant_id' => $applicant->id,
-        ]);
+    //     $this->logAudit($request, 'applicant_document_downloaded', 'applicant_document', $document->id, [
+    //         'applicant_id' => $applicant->id,
+    //     ]);
 
-        return Storage::disk($document->disk)->download($document->file_path, $document->original_filename ?? null);
-    }
+    //     return Storage::disk($document->disk)->download($document->file_path, $document->original_filename ?? null);
+    // }
 
     private function canAccessApplicantDocuments(Request $request, Applicant $applicant): bool
     {

@@ -22,11 +22,14 @@ class UpdateCourseRequest extends FormRequest
      */
     public function rules(): array
     {
-        $courseId = $this->route('id');
-
+        $courseId = $this->route('id'); 
         return [
-            'name' => 'sometimes|string|max:255',
-            'code' => ['nullable', 'string', 'max:50', Rule::unique('courses', 'code')->ignore($courseId)],
+            'course_code' => 'sometimes|string|max:50|unique:courses,course_code,' . $courseId,
+            'course_name' => 'sometimes|string|max:255',
+            'units'       => 'sometimes|integer|min:1',
+            'department'  => 'sometimes|string|max:255',
+            'status'      => 'sometimes|string|in:active,inactive',
+            'type'        => 'sometimes|string',
             'description' => 'nullable|string',
         ];
     }

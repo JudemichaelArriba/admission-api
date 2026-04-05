@@ -73,10 +73,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
         $applicantId = $user->applicant?->id;
 
-        $this->logAudit($request, 'user_logged_in', 'user', $user->id, [
-            'role' => $user->role->value,
-            'applicant_id' => $applicantId,
-        ]);
+
 
         return response()->json([
             'message' => 'Login successful',
