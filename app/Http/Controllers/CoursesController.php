@@ -12,7 +12,12 @@ class CoursesController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json(Course::latest('id')->get(), 200);
+     
+        $courses = Course::active()
+            ->latest('id')
+            ->get();
+
+        return response()->json($courses, 200);
     }
 
     public function show(int $id)

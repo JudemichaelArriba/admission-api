@@ -24,4 +24,8 @@ class Course extends Model
     {
         return $this->hasMany(Applicant::class);
     }
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
 }
