@@ -110,9 +110,9 @@ class ApprovalController extends Controller
             );
 
             $applicant->update(['status' => Applicant::STATUS_ENROLLED]);
-
             $this->logAudit($request, 'applicant_enrolled', 'applicant', $applicant->id, [
-                'student_number' => $student->student_number,
+                'student_id' => $student->student_number,
+                'enrolled_at' => $effectiveDate,
             ]);
 
             return $student;
@@ -125,18 +125,13 @@ class ApprovalController extends Controller
         ]);
     }
 
-    /**
-     * Simple document check: Efficiently checks if any record exists in the documents table
-     */
+
     private function hasAtLeastOneDocument(Applicant $applicant): bool
     {
-        // .exists() is faster than .count() in production because it stops at the first result
         return $applicant->documents()->exists();
     }
 
-    /**
-     * Generates a standard student number
-     */
+
     private function generateStudentNumber(int $applicantId): string
     {
         return 'STU-' . now()->format('Y') . '-' . str_pad((string) $applicantId, 6, '0', STR_PAD_LEFT);
