@@ -8,19 +8,13 @@ use App\Models\Student;
 use App\Http\Requests\UpdateApplicantStatusRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ApprovalController extends Controller
 {
-    private const REQUIRED_DOCUMENT_TYPES = [
-        'birth_certificate',
-        'report_card',
-    ];
 
     public function updateStatus(UpdateApplicantStatusRequest $request, int $id)
     {
-        if (!$request->user()->hasRole(UserRole::ADMIN)) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
 
         $validated = $request->validated();
 
@@ -36,59 +30,56 @@ class ApprovalController extends Controller
         }
     }
 
-    private function approveApplicant(Request $request, int $id)
+
+    public function approveApplicant(Request $request, int $id)
     {
-        $applicant = Applicant::with('documents', 'exams')->find($id);
-        if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found'], 404);
-        }
+        return DB::transaction(function () use ($request, $id) {
+            $applicant = Applicant::findOrFail($id);
 
-        if ($applicant->status !== Applicant::STATUS_PENDING) {
-            return response()->json(['message' => 'Only pending applicants can be approved'], 409);
-        }
+            if ($applicant->status === Applicant::STATUS_APPROVED) {
+                return response()->json(['message' => 'Applicant is already approved'], 400);
+            }
 
-        $missing = $this->missingRequiredDocuments($applicant);
-        if (!empty($missing)) {
-            return response()->json([
-                'message' => 'Required documents are missing',
-                'missing_documents' => array_values($missing),
-            ], 422);
-        }
+            if (!$this->hasAtLeastOneDocument($applicant)) {
+                return response()->json([
+                    'message' => 'Cannot approve applicant. No documents have been uploaded yet.',
+                ], 422);
+            }
 
-        $latestExam = $applicant->exams()->latest('exam_date')->latest('id')->first();
-        if (!$latestExam || $latestExam->status !== 'evaluated') {
-            return response()->json(['message' => 'Applicant must have an evaluated exam before approval'], 422);
-        }
+            $applicant->update(['status' => Applicant::STATUS_APPROVED]);
 
-        DB::transaction(function () use ($request, $applicant, $latestExam) {
-            $applicant->forceFill(['status' => Applicant::STATUS_APPROVED])->save();
+            $student = Student::create([
+                'applicant_id' => $applicant->id,
+                'student_number' => $this->generateStudentNumber($applicant->id),
+                'enrolled_at' => now(),
+            ]);
+
             $this->logAudit($request, 'applicant_approved', 'applicant', $applicant->id, [
-                'exam_id' => $latestExam->id,
-                'exam_score' => $latestExam->exam_score,
+                'student_number' => $student->student_number
+            ]);
+
+            return response()->json([
+                'message' => 'Applicant approved and student record created',
+                'student_number' => $student->student_number,
+                'applicant' => $applicant->fresh()
             ]);
         });
-
-        return response()->json([
-            'message' => 'Applicant approved',
-            'applicant' => $applicant->fresh('course', 'documents', 'exams'),
-        ]);
     }
 
     private function rejectApplicant(Request $request, int $id, ?string $reason)
     {
-        $applicant = Applicant::find($id);
-        if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found'], 404);
-        }
+        $applicant = Applicant::findOrFail($id);
 
         if (!in_array($applicant->status, [Applicant::STATUS_PENDING, Applicant::STATUS_APPROVED], true)) {
             return response()->json(['message' => 'This applicant cannot be rejected from the current state'], 409);
         }
 
         DB::transaction(function () use ($request, $applicant, $reason) {
-            $applicant->forceFill(['status' => Applicant::STATUS_REJECTED])->save();
-            $context = $reason !== null ? ['reason' => $reason] : [];
-            $this->logAudit($request, 'applicant_rejected', 'applicant', $applicant->id, $context);
+            $applicant->update(['status' => Applicant::STATUS_REJECTED]);
+
+            $this->logAudit($request, 'applicant_rejected', 'applicant', $applicant->id, [
+                'reason' => $reason
+            ]);
         });
 
         return response()->json([
@@ -97,33 +88,30 @@ class ApprovalController extends Controller
         ]);
     }
 
+
     private function enrollApplicant(Request $request, int $id, ?string $enrolledAt)
     {
-        $applicant = Applicant::with('student')->find($id);
-        if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found'], 404);
-        }
+        $applicant = Applicant::with('student')->findOrFail($id);
 
         if ($applicant->status !== Applicant::STATUS_APPROVED) {
             return response()->json(['message' => 'Only approved applicants can be enrolled'], 409);
         }
 
-        if ($applicant->student) {
-            return response()->json(['message' => 'Applicant is already linked to a student record'], 409);
-        }
-
         $student = DB::transaction(function () use ($request, $applicant, $enrolledAt) {
-            $effectiveEnrolledAt = $enrolledAt ?? now()->toDateTimeString();
-            $student = Student::create([
-                'applicant_id' => $applicant->id,
-                'student_number' => $this->generateStudentNumber($applicant->id),
-                'enrolled_at' => $effectiveEnrolledAt,
-            ]);
+            $effectiveDate = $enrolledAt ?? now();
 
-            $applicant->forceFill(['status' => Applicant::STATUS_ENROLLED])->save();
+
+            $student = Student::firstOrCreate(
+                ['applicant_id' => $applicant->id],
+                [
+                    'student_number' => $this->generateStudentNumber($applicant->id),
+                    'enrolled_at' => $effectiveDate
+                ]
+            );
+
+            $applicant->update(['status' => Applicant::STATUS_ENROLLED]);
 
             $this->logAudit($request, 'applicant_enrolled', 'applicant', $applicant->id, [
-                'student_id' => $student->id,
                 'student_number' => $student->student_number,
             ]);
 
@@ -131,23 +119,24 @@ class ApprovalController extends Controller
         });
 
         return response()->json([
-            'message' => 'Applicant enrolled',
+            'message' => 'Applicant enrolled successfully',
             'applicant' => $applicant->fresh('student'),
             'student' => $student,
         ]);
     }
 
-    private function missingRequiredDocuments(Applicant $applicant): array
+    /**
+     * Simple document check: Efficiently checks if any record exists in the documents table
+     */
+    private function hasAtLeastOneDocument(Applicant $applicant): bool
     {
-        $existingTypes = $applicant->documents
-            ->pluck('document_type')
-            ->map(static fn (string $type) => strtolower($type))
-            ->unique()
-            ->toArray();
-
-        return array_diff(self::REQUIRED_DOCUMENT_TYPES, $existingTypes);
+        // .exists() is faster than .count() in production because it stops at the first result
+        return $applicant->documents()->exists();
     }
 
+    /**
+     * Generates a standard student number
+     */
     private function generateStudentNumber(int $applicantId): string
     {
         return 'STU-' . now()->format('Y') . '-' . str_pad((string) $applicantId, 6, '0', STR_PAD_LEFT);
