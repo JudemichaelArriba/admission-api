@@ -9,6 +9,7 @@ use App\Http\Requests\ApplicantSignupRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Resources\StudentDataResource;
 
 class AuthController extends Controller
 {
@@ -66,26 +67,33 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $validated['email'])->first();
+
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
         $user->tokens()->delete();
         $token = $user->createToken('auth-token')->plainTextToken;
-        $applicantId = $user->applicant?->id;
 
 
+        $user->load(['applicant.student', 'applicant.course']);
 
-        return response()->json([
+        $responseData = [
             'message' => 'Login successful',
             'token' => $token,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
-                'email' => $user->email,
                 'role' => $user->role->value,
             ],
-            'applicant_id' => $applicantId,
-        ]);
+        ];
+
+   
+        if ($user->applicant) {
+            $responseData['Student'] = new StudentDataResource($user->applicant);
+        }
+
+        return response()->json($responseData);
     }
 
     public function logout(Request $request)

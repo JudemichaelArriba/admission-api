@@ -14,17 +14,19 @@ class StudentController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $students = Student::with(['applicant.course'])->latest('id')->get();
+      
+        $students = Student::with(['applicant.course'])->latest('enrolled_at')->get();
         return response()->json($students);
     }
 
-    public function show(Request $request, int $id)
+    public function show(Request $request, string $id) 
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $student = Student::with(['applicant.course'])->find($id);
+        $student = Student::with(['applicant.course'])->find($id); 
+
         if (!$student) {
             return response()->json(['message' => 'Student not found'], 404);
         }

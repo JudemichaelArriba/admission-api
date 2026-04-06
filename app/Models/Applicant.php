@@ -19,6 +19,7 @@ class Applicant extends Model
         'date_of_birth',
         'address',
         'course_id',
+        'status',
     ];
 
     protected $casts = [
