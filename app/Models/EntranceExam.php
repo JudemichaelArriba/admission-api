@@ -12,6 +12,8 @@ class EntranceExam extends Model
     protected $fillable = [
         'applicant_id',
         'exam_date',
+        'exam_end_time',
+        'room',
         'exam_score',
         'status',
     ];
