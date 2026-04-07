@@ -24,10 +24,25 @@ class ManageEntranceExamRequest extends FormRequest
     {
         return [
             'action' => ['required', 'string', Rule::in(['schedule', 'evaluate'])],
+            'additional_applicant_ids' => ['nullable', 'array'],
+            'additional_applicant_ids.*' => ['exists:applicants,id'],
+
             'exam_date' => [
                 'required_if:action,schedule',
                 'date',
                 'after_or_equal:today',
+                'prohibited_unless:action,schedule',
+            ],
+            'exam_end_time' => [
+                'required_if:action,schedule',
+                'date',
+                'after:exam_date',
+                'prohibited_unless:action,schedule',
+            ],
+            'room' => [
+                'required_if:action,schedule',
+                'string',
+                'max:255',
                 'prohibited_unless:action,schedule',
             ],
             'exam_score' => [
