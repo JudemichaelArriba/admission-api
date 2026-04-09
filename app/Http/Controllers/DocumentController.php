@@ -50,8 +50,9 @@ class DocumentController extends Controller
 
 
         return response($document->file_content)
-            ->header('Content-Type', $document->mime_type)
-            ->header('Content-Disposition', 'inline; filename="' . $document->original_filename . '"');
+            ->header('Content-Type', $document->mime_type ?? 'application/octet-stream')
+            ->header('Content-Disposition', 'inline; filename="' . $document->original_filename . '"')
+            ->header('Content-Length', $document->file_size);
     }
 
     public function index(Request $request, int $id)

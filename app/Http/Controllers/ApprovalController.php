@@ -34,7 +34,8 @@ class ApprovalController extends Controller
     public function approveApplicant(Request $request, int $id)
     {
         return DB::transaction(function () use ($request, $id) {
-            $applicant = Applicant::findOrFail($id);
+
+            $applicant = Applicant::with('exams')->findOrFail($id);
 
             if ($applicant->status === Applicant::STATUS_APPROVED) {
                 return response()->json(['message' => 'Applicant is already approved'], 400);
@@ -45,17 +46,24 @@ class ApprovalController extends Controller
                     'message' => 'Cannot approve applicant. No documents have been uploaded yet.',
                 ], 422);
             }
+            if (!$this->hasEvaluatedExam($applicant)) {
+                return response()->json([
+                    'message' => 'Cannot approve applicant. Entrance exam has not been evaluated or scored yet.',
+                ], 422);
+            }
 
             $applicant->update(['status' => Applicant::STATUS_APPROVED]);
-
-            $student = Student::create([
-                'applicant_id' => $applicant->id,
-                'student_number' => $this->generateStudentNumber($applicant->id),
-                'enrolled_at' => now(),
-            ]);
+            $student = Student::firstOrCreate(
+                ['applicant_id' => $applicant->id],
+                [
+                    'student_number' => $this->generateStudentNumber($applicant->id),
+                    'enrolled_at' => now(),
+                ]
+            );
 
             $this->logAudit($request, 'applicant_approved', 'applicant', $applicant->id, [
-                'student_number' => $student->student_number
+                'student_number' => $student->student_number,
+                'exam_score' => $applicant->exams()->where('status', 'evaluated')->latest()->first()->exam_score
             ]);
 
             return response()->json([
@@ -135,5 +143,14 @@ class ApprovalController extends Controller
     private function generateStudentNumber(int $applicantId): string
     {
         return 'STU-' . now()->format('Y') . '-' . str_pad((string) $applicantId, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function hasEvaluatedExam(Applicant $applicant): bool
+    {
+
+        return $applicant->exams()
+            ->where('status', 'evaluated')
+            ->whereNotNull('exam_score')
+            ->exists();
     }
 }

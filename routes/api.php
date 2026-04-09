@@ -26,6 +26,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('auth')->controller(AuthController::class)->group(function () {
         Route::post('/logout', 'logout');
     });
+    Route::get('/exams/{id?}', [ExamController::class, 'index']);
+
+
+
 
     Route::get('/user', function (Request $request) {
         return response()->json($request->user());
@@ -36,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('applicants')->controller(ApplicantController::class)->group(function () {
-        Route::get('/{id}', 'show')-> middleware('role:admin');
+        Route::get('/{id}', 'show')->middleware('role:admin');
         Route::post('/', 'store')->middleware('role:admin');
         Route::put('/{id}', 'update');
         Route::delete('/{id}', 'destroy')->middleware('role:admin');
@@ -50,7 +54,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('applicants/{id}/exams')->controller(ExamController::class)->group(function () {
         Route::post('/', 'manage')->middleware('role:admin');
-        Route::get('/', 'index');
     });
 
     Route::prefix('applicants/{id}')->controller(ApprovalController::class)->group(function () {
@@ -73,7 +76,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('audit-logs')->controller(AuditLogController::class)->group(function () {
         Route::get('/', 'index')->middleware('role:admin');
     });
-
 });
 
 

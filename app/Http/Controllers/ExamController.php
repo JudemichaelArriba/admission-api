@@ -32,7 +32,7 @@ class ExamController extends Controller
                 foreach ($applicantIds as $appId) {
                     $applicant = Applicant::find($appId);
 
-                
+
                     if (!$applicant || $applicant->status !== Applicant::STATUS_PENDING) {
                         continue;
                     }
@@ -60,7 +60,7 @@ class ExamController extends Controller
             });
         }
 
-       
+
         $exam = EntranceExam::where('applicant_id', $id)->where('status', 'scheduled')->latest()->first();
 
         if (!$exam) {
@@ -75,20 +75,44 @@ class ExamController extends Controller
         return response()->json($exam);
     }
 
-    public function index(Request $request, int $id)
+    public function index(Request $request, ?int $id = null)
     {
-        $applicant = Applicant::with('exams')->find($id);
-        if (!$applicant) {
-            return response()->json(['message' => 'Applicant not found'], 404);
-        }
-
         $user = $request->user();
-        $canAccess = $user->hasRole(UserRole::ADMIN)
-            || ($user->hasRole(UserRole::APPLICANT) && $applicant->user_id === $user->id);
-        if (!$canAccess) {
-            return response()->json(['message' => 'Forbidden'], 403);
+
+        // 1. Logic for ADMIN
+        if ($user->hasRole(UserRole::ADMIN)) {
+            $query = EntranceExam::with('applicant');
+
+            // If an ID is provided in the URL, filter for that specific applicant
+            if ($id) {
+                $query->where('applicant_id', $id);
+            }
+
+            // Optional: filter by date or status via query params (e.g., ?status=scheduled)
+            if ($request->has('status')) {
+                $query->where('status', $request->query('status'));
+            }
+
+            return response()->json($query->latest()->get());
         }
 
-        return response()->json($applicant->exams);
+        // 2. Logic for APPLICANT
+        if ($user->hasRole(UserRole::APPLICANT)) {
+            // Security: Even if they pass an {id} in the URL, we only show THEIR exams.
+            // We fetch the applicant record tied to the logged-in user.
+            $applicant = Applicant::where('user_id', $user->id)->first();
+
+            if (!$applicant) {
+                return response()->json(['message' => 'Applicant profile not found'], 404);
+            }
+
+            $exams = EntranceExam::where('applicant_id', $applicant->id)
+                ->latest()
+                ->get();
+
+            return response()->json($exams);
+        }
+
+        return response()->json(['message' => 'Forbidden'], 403);
     }
 }
