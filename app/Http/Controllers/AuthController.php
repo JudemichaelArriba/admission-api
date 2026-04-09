@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Resources\StudentDataResource;
+use App\Http\Requests\AdminRegisterRequest;
 
 class AuthController extends Controller
 {
@@ -88,8 +89,8 @@ class AuthController extends Controller
             ],
         ];
 
-   
-        if ($user->applicant) {
+
+        if ($user->applicant && $user->applicant->status === 'approved' && $user->applicant->student) {
             $responseData['Student'] = new StudentDataResource($user->applicant);
         }
 
@@ -104,5 +105,25 @@ class AuthController extends Controller
         $this->logAudit($request, 'user_logged_out', 'user', $user->id);
 
         return response()->json(['message' => 'Logout successful']);
+    }
+
+    public function registerAdmin(AdminRegisterRequest $request)
+    {
+        $validated = $request->validated();
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'role' => UserRole::ADMIN,
+        ]);
+
+        $token = $user->createToken('admin-api')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Admin created successfully',
+            'user' => $user,
+            'token' => $token
+        ], 201);
     }
 }
