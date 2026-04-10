@@ -8,6 +8,7 @@ use App\Models\EntranceExam;
 use App\Http\Requests\ManageEntranceExamRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class ExamController extends Controller
 {
@@ -20,7 +21,6 @@ class ExamController extends Controller
         $validated = $request->validated();
         $action = $validated['action'];
 
-
         $applicantIds = collect([$id])
             ->concat($request->input('additional_applicant_ids', []))
             ->unique();
@@ -31,7 +31,6 @@ class ExamController extends Controller
 
                 foreach ($applicantIds as $appId) {
                     $applicant = Applicant::find($appId);
-
 
                     if (!$applicant || $applicant->status !== Applicant::STATUS_PENDING) {
                         continue;
@@ -60,16 +59,26 @@ class ExamController extends Controller
             });
         }
 
-
-        $exam = EntranceExam::where('applicant_id', $id)->where('status', 'scheduled')->latest()->first();
+        $exam = EntranceExam::where('applicant_id', $id)
+            ->where('status', 'scheduled')
+            ->latest()
+            ->first();
 
         if (!$exam) {
             return response()->json(['message' => 'Scheduled exam not found for this applicant'], 404);
         }
 
+        $examEndDateTime = Carbon::parse($exam->exam_end_time, config('app.timezone'));
+
+        if (Carbon::now(config('app.timezone'))->lessThanOrEqualTo($examEndDateTime)) {
+            return response()->json([
+                'message' => 'Exam cannot be evaluated until it has fully concluded. The exam ends at ' . $examEndDateTime->toDateTimeString() . '.',
+            ], 422);
+        }
+
         $exam->update([
             'exam_score' => $validated['exam_score'],
-            'status' => 'evaluated',
+            'status'     => 'evaluated',
         ]);
 
         return response()->json($exam);
@@ -79,16 +88,13 @@ class ExamController extends Controller
     {
         $user = $request->user();
 
-        // 1. Logic for ADMIN
         if ($user->hasRole(UserRole::ADMIN)) {
             $query = EntranceExam::with('applicant');
 
-            // If an ID is provided in the URL, filter for that specific applicant
             if ($id) {
                 $query->where('applicant_id', $id);
             }
 
-            // Optional: filter by date or status via query params (e.g., ?status=scheduled)
             if ($request->has('status')) {
                 $query->where('status', $request->query('status'));
             }
@@ -96,10 +102,7 @@ class ExamController extends Controller
             return response()->json($query->latest()->get());
         }
 
-        // 2. Logic for APPLICANT
         if ($user->hasRole(UserRole::APPLICANT)) {
-            // Security: Even if they pass an {id} in the URL, we only show THEIR exams.
-            // We fetch the applicant record tied to the logged-in user.
             $applicant = Applicant::where('user_id', $user->id)->first();
 
             if (!$applicant) {
