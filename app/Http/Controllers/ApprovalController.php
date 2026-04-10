@@ -35,7 +35,11 @@ class ApprovalController extends Controller
     {
         return DB::transaction(function () use ($request, $id) {
 
-            $applicant = Applicant::with('exams')->findOrFail($id);
+            $applicant = Applicant::with('exams')->find($id);
+
+            if (!$applicant) {
+                return response()->json(['message' => 'Applicant not found'], 404);
+            }
 
             if ($applicant->status === Applicant::STATUS_APPROVED) {
                 return response()->json(['message' => 'Applicant is already approved'], 400);
@@ -76,7 +80,11 @@ class ApprovalController extends Controller
 
     private function rejectApplicant(Request $request, int $id, ?string $reason)
     {
-        $applicant = Applicant::findOrFail($id);
+        $applicant = Applicant::find($id);
+
+        if (!$applicant) {
+            return response()->json(['message' => 'Applicant not found'], 404);
+        }
 
         if (!in_array($applicant->status, [Applicant::STATUS_PENDING, Applicant::STATUS_APPROVED], true)) {
             return response()->json(['message' => 'This applicant cannot be rejected from the current state'], 409);
@@ -99,7 +107,11 @@ class ApprovalController extends Controller
 
     private function enrollApplicant(Request $request, int $id, ?string $enrolledAt)
     {
-        $applicant = Applicant::with('student')->findOrFail($id);
+        $applicant = Applicant::with('student')->find($id);
+
+        if (!$applicant) {
+            return response()->json(['message' => 'Applicant not found'], 404);
+        }
 
         if ($applicant->status !== Applicant::STATUS_APPROVED) {
             return response()->json(['message' => 'Only approved applicants can be enrolled'], 409);

@@ -59,6 +59,12 @@ class ExamController extends Controller
             });
         }
 
+        $applicant = Applicant::find($id);
+
+        if (!$applicant) {
+            return response()->json(['message' => 'Applicant not found'], 404);
+        }
+
         $exam = EntranceExam::where('applicant_id', $id)
             ->where('status', 'scheduled')
             ->latest()
@@ -92,6 +98,12 @@ class ExamController extends Controller
             $query = EntranceExam::with('applicant');
 
             if ($id) {
+                $applicant = Applicant::find($id);
+
+                if (!$applicant) {
+                    return response()->json(['message' => 'Applicant not found'], 404);
+                }
+
                 $query->where('applicant_id', $id);
             }
 
