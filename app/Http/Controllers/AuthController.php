@@ -60,7 +60,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
+  public function login(Request $request)
     {
         $validated = $request->validate([
             'email' => 'required|email',
@@ -76,7 +76,6 @@ class AuthController extends Controller
         $user->tokens()->delete();
         $token = $user->createToken('auth-token')->plainTextToken;
 
-
         $user->load(['applicant.student', 'applicant.course']);
 
         $responseData = [
@@ -89,14 +88,17 @@ class AuthController extends Controller
             ],
         ];
 
+        if ($user->applicant) {
+            $responseData['applicant'] = $user->applicant;
 
-        if ($user->applicant && $user->applicant->status === 'approved' && $user->applicant->student) {
-            $responseData['Student'] = new StudentDataResource($user->applicant);
+          
+            if ($user->applicant->status === 'approved' && $user->applicant->student) {
+                $responseData['Student'] = new StudentDataResource($user->applicant);
+            }
         }
 
         return response()->json($responseData);
     }
-
     public function logout(Request $request)
     {
         $user = $request->user();

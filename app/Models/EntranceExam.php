@@ -11,16 +11,19 @@ class EntranceExam extends Model
 
     protected $fillable = [
         'applicant_id',
-        'exam_date',
-        'exam_end_time',
-        'room',
+        'exam_schedule_id', 
         'exam_score',
         'status',
     ];
 
-    // Each exam belongs to an applicant
     public function applicant()
     {
         return $this->belongsTo(Applicant::class);
+    }
+
+    // New relationship linking back to the master schedule
+    public function schedule()
+    {
+        return $this->belongsTo(ExamSchedule::class, 'exam_schedule_id');
     }
 }
