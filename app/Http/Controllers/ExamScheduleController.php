@@ -13,13 +13,11 @@ use Illuminate\Support\Facades\DB;
 
 class ExamScheduleController extends Controller
 {
-
     public function index(Request $request)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
-
 
         $schedules = ExamSchedule::with(['exams.applicant'])->latest()->get();
         return response()->json($schedules);
@@ -41,7 +39,12 @@ class ExamScheduleController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $schedule->update($request->validated());
+        $data = $request->validated();
+        if ($request->has('status') && in_array($request->status, ['upcoming', 'completed'])) {
+            $data['status'] = $request->status;
+        }
+
+        $schedule->update($data);
         return response()->json(['message' => 'Schedule updated', 'data' => $schedule]);
     }
 
@@ -60,6 +63,12 @@ class ExamScheduleController extends Controller
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
+        if ($schedule->status === 'completed') {
+            return response()->json([
+                'message' => 'Action denied.',
+                'errors' => ['Cannot add applicants to a completed exam schedule.']
+            ], 422);
+        }
 
         $applicantIds = $request->validated()['applicant_ids'];
         $createdExams = [];
@@ -73,7 +82,6 @@ class ExamScheduleController extends Controller
                     $errors[] = "Applicant ID {$appId} cannot be found or is not on the system.";
                     continue;
                 }
-
       
                 if ($applicant->status !== Applicant::STATUS_PENDING) {
                     $errors[] = "Applicant ID {$appId} cannot be scheduled (Status is {$applicant->status}).";
@@ -103,11 +111,15 @@ class ExamScheduleController extends Controller
         ], count($errors) > 0 && count($createdExams) === 0 ? 404 : 200);
     }
 
-
     public function removeApplicant(Request $request, ExamSchedule $schedule, $applicantId)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
+        }
+        if ($schedule->status === 'completed') {
+            return response()->json([
+                'message' => 'Cannot remove applicants from a completed exam schedule.'
+            ], 422);
         }
 
         $exam = EntranceExam::where('exam_schedule_id', $schedule->id)
