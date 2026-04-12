@@ -68,7 +68,7 @@ class ApplicantController extends Controller
 
 
 
-    // adding a applicants but not publicly only admin users
+
     public function store(CreateApplicantRequest $request)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
@@ -138,5 +138,23 @@ class ApplicantController extends Controller
         return $user->hasRole(UserRole::APPLICANT)
             && $applicant->user_id === $user->id
             && $applicant->status === Applicant::STATUS_PENDING;
+    }
+
+
+
+
+    public function getUnscheduledApplicants(Request $request)
+    {
+        if (!$request->user()->hasRole(UserRole::ADMIN)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+
+        $applicants = Applicant::where('status', Applicant::STATUS_PENDING)
+            ->whereDoesntHave('exams')
+            ->with('course')
+            ->get();
+
+        return response()->json($applicants);
     }
 }

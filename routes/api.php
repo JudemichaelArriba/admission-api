@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\ExamScheduleController;
 use App\Http\Controllers\StudentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::controller(ApplicantController::class)->group(function () {
             Route::get('/', 'index')->middleware('role:admin');
             Route::post('/', 'store')->middleware('role:admin');
+            Route::get('/unscheduled', 'getUnscheduledApplicants')->middleware('role:admin');
             Route::get('/{id}', 'show')->middleware('role:admin');
             Route::put('/{id}', 'update');
             Route::delete('/{id}', 'destroy')->middleware('role:admin');
@@ -48,16 +50,25 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{documentId}/download', 'download');
         });
 
-        Route::prefix('{id}/exams')->controller(ExamController::class)->group(function () {
-            Route::post('/', 'manage')->middleware('role:admin');
-        });
-
         Route::prefix('{id}')->controller(ApprovalController::class)->group(function () {
             Route::post('/status', 'updateStatus')->middleware('role:admin');
         });
     });
 
+    Route::prefix('exam-schedules')->controller(ExamScheduleController::class)->group(function () {
+        Route::get('/', 'index')->middleware('role:admin');
+        Route::post('/', 'store')->middleware('role:admin');
+        Route::put('/{schedule}', 'update')->middleware('role:admin');
+        Route::delete('/{schedule}', 'destroy')->middleware('role:admin');
+        Route::post('/{schedule}/applicants', 'addApplicants')->middleware('role:admin');
+        Route::delete('/{schedule}/applicants/{applicantId}', 'removeApplicant')->middleware('role:admin');
+    });
+
     Route::get('/exams/{id?}', [ExamController::class, 'index']);
+
+    Route::prefix('exams')->controller(ExamController::class)->group(function () {
+        Route::put('/{examId}/evaluate', 'evaluate')->middleware('role:admin');
+    });
 
     Route::prefix('courses')->controller(CoursesController::class)->group(function () {
         Route::get('/{id}', 'show');
