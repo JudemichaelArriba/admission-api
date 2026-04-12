@@ -13,6 +13,7 @@ class ExamSchedule extends Model
         'exam_date',
         'exam_end_time',
         'room',
+        'status',
     ];
 
     public function exams()
