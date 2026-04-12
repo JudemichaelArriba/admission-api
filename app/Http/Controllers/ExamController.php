@@ -21,8 +21,8 @@ class ExamController extends Controller
                 $exams = EntranceExam::with(['schedule', 'applicant'])->latest()->get();
                 return response()->json($exams);
             }
-            
-        
+
+
             return response()->json(['message' => 'Forbidden: ID required to view personal exams'], 403);
         }
 
@@ -31,7 +31,7 @@ class ExamController extends Controller
                 ->where('applicant_id', $id)
                 ->latest()
                 ->get();
-                
+
             return response()->json($exams);
         }
 
@@ -42,7 +42,7 @@ class ExamController extends Controller
                 return response()->json(['message' => 'Applicant profile not found'], 404);
             }
 
-            // Trap: Applicant trying to view someone else's ID
+
             if ($applicant->id !== (int) $id) {
                 return response()->json(['message' => 'Forbidden: You can only view your own exams'], 403);
             }
@@ -57,25 +57,21 @@ class ExamController extends Controller
 
         return response()->json(['message' => 'Forbidden'], 403);
     }
-
     public function evaluate(EvaluateExamRequest $request, $examId)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $exam = EntranceExam::with('schedule')->find($examId);
+        $exam = EntranceExam::with(['schedule', 'applicant.course'])->find($examId);
 
         if (!$exam) {
             return response()->json(['message' => 'Exam record not found'], 404);
         }
 
-        $examEndDateTime = Carbon::parse($exam->schedule->exam_end_time, config('app.timezone'));
 
-        if (Carbon::now(config('app.timezone'))->lessThanOrEqualTo($examEndDateTime)) {
-            return response()->json([
-                'message' => 'Exam cannot be evaluated until it concludes at ' . $examEndDateTime->toDateTimeString(),
-            ], 422);
+        if ($exam->schedule->status !== 'completed') {
+            return response()->json(['message' => 'Cannot grade an exam that is still upcoming'], 422);
         }
 
         $exam->update([
@@ -83,6 +79,33 @@ class ExamController extends Controller
             'status'     => 'evaluated',
         ]);
 
-        return response()->json(['message' => 'Exam evaluated successfully', 'data' => $exam]);
+        return response()->json([
+            'message' => 'Exam evaluated successfully',
+            'data' => $exam->fresh(['applicant.course', 'schedule']) // Return fresh data for frontend sync
+        ]);
+    }
+
+
+
+    public function evaluationQueue(Request $request)
+    {
+
+        if (!$request->user()->hasRole(UserRole::ADMIN)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+
+        $query = EntranceExam::with(['applicant.course', 'schedule'])
+            ->whereHas('schedule', function ($q) {
+
+                $q->where('status', 'completed');
+            });
+
+        $exams = $query
+            ->orderByRaw('exam_score IS NOT NULL')
+            ->latest('updated_at')
+            ->get();
+
+        return response()->json($exams);
     }
 }

@@ -45,14 +45,25 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         Route::prefix('{id}/documents')->controller(DocumentController::class)->group(function () {
-            Route::post('/', 'upload')->middleware('throttle:20,1');
             Route::get('/', 'index');
+            Route::post('/', 'upload')->middleware('throttle:20,1');
             Route::get('/{documentId}/download', 'download');
         });
 
         Route::prefix('{id}')->controller(ApprovalController::class)->group(function () {
             Route::post('/status', 'updateStatus')->middleware('role:admin');
         });
+    });
+
+    Route::prefix('audit-logs')->controller(AuditLogController::class)->group(function () {
+        Route::get('/', 'index')->middleware('role:admin');
+    });
+
+    Route::prefix('courses')->controller(CoursesController::class)->group(function () {
+        Route::post('/', 'store')->middleware('role:admin');
+        Route::get('/{id}', 'show');
+        Route::put('/{id}', 'update')->middleware('role:admin');
+        Route::delete('/{id}', 'destroy')->middleware('role:admin');
     });
 
     Route::prefix('exam-schedules')->controller(ExamScheduleController::class)->group(function () {
@@ -64,25 +75,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{schedule}/applicants/{applicantId}', 'removeApplicant')->middleware('role:admin');
     });
 
-    Route::get('/exams/{id?}', [ExamController::class, 'index']);
-
     Route::prefix('exams')->controller(ExamController::class)->group(function () {
+        Route::get('/evaluation-queue', 'evaluationQueue');
+        Route::get('/{id?}', 'index');
         Route::put('/{examId}/evaluate', 'evaluate')->middleware('role:admin');
-    });
-
-    Route::prefix('courses')->controller(CoursesController::class)->group(function () {
-        Route::get('/{id}', 'show');
-        Route::post('/', 'store')->middleware('role:admin');
-        Route::put('/{id}', 'update')->middleware('role:admin');
-        Route::delete('/{id}', 'destroy')->middleware('role:admin');
     });
 
     Route::prefix('students')->controller(StudentController::class)->group(function () {
         Route::get('/', 'index')->middleware('role:admin');
         Route::get('/{id}', 'show')->middleware('role:admin');
-    });
-
-    Route::prefix('audit-logs')->controller(AuditLogController::class)->group(function () {
-        Route::get('/', 'index')->middleware('role:admin');
     });
 });
