@@ -33,7 +33,7 @@ class ExamScheduleController extends Controller
         return response()->json(['message' => 'Schedule created', 'data' => $schedule], 201);
     }
 
-public function update(ManageScheduleRequest $request, ExamSchedule $schedule)
+    public function update(ManageScheduleRequest $request, ExamSchedule $schedule)
     {
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -43,42 +43,36 @@ public function update(ManageScheduleRequest $request, ExamSchedule $schedule)
         if ($request->has('status') && in_array($request->status, ['upcoming', 'completed'])) {
             $data['status'] = $request->status;
         }
-
-        // PRODUCTION PATTERN: Wrap in a transaction to ensure data integrity
         DB::transaction(function () use ($schedule, $data) {
-            
-            // 1. Check if the status is genuinely changing
-            $isChangingToCompleted = isset($data['status']) 
-                && $data['status'] === 'completed' 
+
+
+            $isChangingToCompleted = isset($data['status'])
+                && $data['status'] === 'completed'
                 && $schedule->status !== 'completed';
 
-            // Catch edge case: Admin accidentally sets to completed, then reverts back to upcoming
-            $isChangingToUpcoming = isset($data['status']) 
-                && $data['status'] === 'upcoming' 
+
+            $isChangingToUpcoming = isset($data['status'])
+                && $data['status'] === 'upcoming'
                 && $schedule->status !== 'upcoming';
-
-            // 2. Update the master schedule
             $schedule->update($data);
-
-            // 3. Cascade the status to the exams if needed
             if ($isChangingToCompleted) {
-                // Only update exams that are 'scheduled'. Never touch 'evaluated' ones.
+
                 $schedule->exams()
                     ->where('status', 'scheduled')
                     ->update(['status' => 'completed']);
             } elseif ($isChangingToUpcoming) {
-                // If reverting to upcoming, change un-evaluated exams back to scheduled
+
                 $schedule->exams()
                     ->where('status', 'completed')
                     ->update(['status' => 'scheduled']);
             }
         });
 
-        // 4. Reload the fresh relationships so Angular gets the updated exam statuses immediately
+
         $schedule->load('exams.applicant');
 
         return response()->json([
-            'message' => 'Schedule updated', 
+            'message' => 'Schedule updated',
             'data' => $schedule
         ]);
     }
@@ -117,7 +111,7 @@ public function update(ManageScheduleRequest $request, ExamSchedule $schedule)
                     $errors[] = "Applicant ID {$appId} cannot be found or is not on the system.";
                     continue;
                 }
-      
+
                 if ($applicant->status !== Applicant::STATUS_PENDING) {
                     $errors[] = "Applicant ID {$appId} cannot be scheduled (Status is {$applicant->status}).";
                     continue;
@@ -142,7 +136,7 @@ public function update(ManageScheduleRequest $request, ExamSchedule $schedule)
         return response()->json([
             'message' => count($createdExams) . ' applicants processed.',
             'added'   => $createdExams,
-            'errors'  => $errors 
+            'errors'  => $errors
         ], count($errors) > 0 && count($createdExams) === 0 ? 404 : 200);
     }
 
