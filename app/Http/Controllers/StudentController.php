@@ -1,22 +1,23 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Student;
+use App\Http\Resources\AdminStudentResource; 
 use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
     public function index(Request $request)
     {
+ 
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-      
+   
         $students = Student::with(['applicant.course'])->latest('enrolled_at')->get();
-        return response()->json($students);
+        return AdminStudentResource::collection($students);
     }
 
     public function show(Request $request, string $id) 
@@ -31,6 +32,6 @@ class StudentController extends Controller
             return response()->json(['message' => 'Student not found'], 404);
         }
 
-        return response()->json($student);
+        return new AdminStudentResource($student);
     }
 }
