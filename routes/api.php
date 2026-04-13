@@ -17,6 +17,8 @@ Route::get('/courses', [CoursesController::class, 'index']);
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('/applicant/signup', 'applicantSignup')->middleware('throttle:8,1');
     Route::post('/login', 'login')->middleware('throttle:12,1');
+    Route::post('/forgot-password', 'forgotPassword')->middleware('throttle:3,1');
+    Route::post('/reset-password', 'resetPassword')->middleware('throttle:3,1');    
     Route::post('/admin/register', 'registerAdmin')->middleware(['auth:sanctum', 'role:admin']);
 });
 

@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Hash;
 use App\Http\Resources\StudentDataResource;
 use App\Http\Requests\AdminRegisterRequest;
 use App\Models\ApplicantDocument;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ResetPasswordMail;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -19,10 +23,7 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-
         $result = DB::transaction(function () use ($validated, $request) {
-
-
             $user = User::create([
                 'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
                 'email' => $validated['email'],
@@ -55,7 +56,6 @@ class AuthController extends Controller
                 'sha256'            => hash_file('sha256', $uploadedFile->getRealPath()),
                 'scan_status'       => 'pending',
             ]);
-
 
             $token = $user->createToken('applicant-api')->plainTextToken;
 
@@ -111,7 +111,6 @@ class AuthController extends Controller
             $responseData['applicant'] = $user->applicant;
 
             if ($user->applicant->status === 'approved' && $user->applicant->student) {
-
                 $responseData['Student'] = new StudentDataResource($user->applicant);
                 $responseData['applicant']->makeHidden(['student', 'course']);
             }
@@ -119,6 +118,7 @@ class AuthController extends Controller
 
         return response()->json($responseData);
     }
+
     public function logout(Request $request)
     {
         $user = $request->user();
@@ -147,5 +147,68 @@ class AuthController extends Controller
             'user' => $user,
             'token' => $token
         ], 201);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if ($user) {
+            $token = Str::random(8);
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $user->email],
+                [
+                    'token' => Hash::make($token),
+                    'created_at' => now()
+                ]
+            );
+
+            Mail::to($user->email)->send(new ResetPasswordMail($token, $user->email));
+        }
+
+        return response()->json([
+            'message' => 'If an account exists with this email, a password reset token has been sent.'
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string',
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+        ]);
+
+        $record = DB::table('password_reset_tokens')->where('email', $validated['email'])->first();
+
+        if (!$record || !Hash::check($validated['token'], $record->token)) {
+            return response()->json(['message' => 'Invalid reset token.'], 400);
+        }
+
+        if (now()->diffInMinutes($record->created_at) > 60) {
+            DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
+            return response()->json(['message' => 'This reset token has expired. Please request a new one.'], 400);
+        }
+
+        $user = User::where('email', $validated['email'])->first();
+        
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 400);
+        }
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        $user->tokens()->delete();
+        DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
+
+        return response()->json([
+            'message' => 'Password has been successfully reset.'
+        ]);
     }
 }
