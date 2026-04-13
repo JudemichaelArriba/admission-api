@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::controller(ApplicantController::class)->group(function () {
             Route::get('/', 'index')->middleware('role:admin');
             Route::post('/', 'store')->middleware('role:admin');
-            Route::get('/unscheduled', 'getUnscheduledApplicants')->middleware('role:admin');
+            Route::get('/unscheduled', 'getUnsched  uledApplicants')->middleware('role:admin');
             Route::get('/{id}', 'show')->middleware('role:admin');
             Route::put('/{id}', 'update');
             Route::delete('/{id}', 'destroy')->middleware('role:admin');
