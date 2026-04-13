@@ -12,20 +12,21 @@ use Illuminate\Support\Facades\Hash;
 use App\Http\Resources\StudentDataResource;
 use App\Http\Requests\AdminRegisterRequest;
 use App\Models\ApplicantDocument;
+
 class AuthController extends Controller
 {
-  public function applicantSignup(ApplicantSignupRequest $request)
+    public function applicantSignup(ApplicantSignupRequest $request)
     {
         $validated = $request->validated();
 
 
         $result = DB::transaction(function () use ($validated, $request) {
-            
- 
+
+
             $user = User::create([
                 'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']), 
+                'password' => Hash::make($validated['password']),
                 'role' => UserRole::APPLICANT,
             ]);
 
@@ -78,7 +79,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-  public function login(Request $request)
+    public function login(Request $request)
     {
         $validated = $request->validate([
             'email' => 'required|email',
@@ -106,11 +107,11 @@ class AuthController extends Controller
             ],
         ];
 
-       if ($user->applicant) {
+        if ($user->applicant) {
             $responseData['applicant'] = $user->applicant;
 
             if ($user->applicant->status === 'approved' && $user->applicant->student) {
-               
+
                 $responseData['Student'] = new StudentDataResource($user->applicant);
                 $responseData['applicant']->makeHidden(['student', 'course']);
             }
@@ -135,7 +136,7 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => $validated['password'],
+            'password' => Hash::make($validated['password']),
             'role' => UserRole::ADMIN,
         ]);
 
