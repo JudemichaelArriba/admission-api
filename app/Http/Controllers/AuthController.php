@@ -88,12 +88,13 @@ class AuthController extends Controller
             ],
         ];
 
-        if ($user->applicant) {
+       if ($user->applicant) {
             $responseData['applicant'] = $user->applicant;
 
-          
             if ($user->applicant->status === 'approved' && $user->applicant->student) {
+               
                 $responseData['Student'] = new StudentDataResource($user->applicant);
+                $responseData['applicant']->makeHidden(['student', 'course']);
             }
         }
 
