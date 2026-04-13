@@ -21,7 +21,6 @@ class StudentDataResource extends JsonResource
                     'course_code' => $this->course?->course_code,
                     'course_name' => $this->course?->course_name,
                     'department'  => $this->course?->department,
-                    'type'        => $this->course?->type,
                 ],
             ]),
 
