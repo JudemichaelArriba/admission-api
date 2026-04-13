@@ -10,11 +10,11 @@ class Course extends Model
     use HasFactory;
 
     protected $fillable = [
+        'id',
         'course_code',
         'course_name',
         'department',
         'status',
-        'description',
     ];
 
     // One course has many applicants
