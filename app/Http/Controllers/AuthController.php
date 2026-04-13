@@ -11,18 +11,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Resources\StudentDataResource;
 use App\Http\Requests\AdminRegisterRequest;
-
+use App\Models\ApplicantDocument;
 class AuthController extends Controller
 {
-    public function applicantSignup(ApplicantSignupRequest $request)
+  public function applicantSignup(ApplicantSignupRequest $request)
     {
         $validated = $request->validated();
 
+
         $result = DB::transaction(function () use ($validated, $request) {
+            
+ 
             $user = User::create([
                 'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
                 'email' => $validated['email'],
-                'password' => $validated['password'],
+                'password' => Hash::make($validated['password']), 
                 'role' => UserRole::APPLICANT,
             ]);
 
@@ -37,6 +40,21 @@ class AuthController extends Controller
                 'address' => $validated['address'] ?? null,
                 'course_id' => $validated['course_id'],
             ]);
+
+            $uploadedFile = $request->file('birth_certificate');
+            $binaryData = file_get_contents($uploadedFile->getRealPath());
+
+            ApplicantDocument::create([
+                'applicant_id'      => $applicant->id,
+                'document_type'     => 'birth_certificate',
+                'file_content'      => $binaryData,
+                'original_filename' => $uploadedFile->getClientOriginalName(),
+                'mime_type'         => $uploadedFile->getMimeType(),
+                'file_size'         => $uploadedFile->getSize(),
+                'sha256'            => hash_file('sha256', $uploadedFile->getRealPath()),
+                'scan_status'       => 'pending',
+            ]);
+
 
             $token = $user->createToken('applicant-api')->plainTextToken;
 
