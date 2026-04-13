@@ -19,7 +19,29 @@ class ExamScheduleController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $schedules = ExamSchedule::with(['exams.applicant'])->latest()->get();
+        $perPage = $request->input('per_page', 10);
+        $search = $request->input('search');
+        $status = $request->input('status');
+
+        $query = ExamSchedule::with(['exams.applicant']);
+
+        // Filter by status if it's not 'all'
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        // Search logic for ID, Room, or Exam Date
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('room', 'like', "%{$search}%")
+                  ->orWhere('exam_date', 'like', "%{$search}%")
+                  ->orWhere('id', $search);
+            });
+        }
+
+        // Keep the latest schedules at the top and paginate
+        $schedules = $query->latest()->paginate($perPage);
+        
         return response()->json($schedules);
     }
 

@@ -87,25 +87,58 @@ class ExamController extends Controller
 
 
 
-    public function evaluationQueue(Request $request)
+public function evaluationQueue(Request $request)
     {
-
         if (!$request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        $perPage = $request->input('per_page', 10);
+        $search = $request->input('search');
+        $filter = $request->input('filter', 'all');
 
-        $query = EntranceExam::with(['applicant.course', 'schedule'])
+        // Base query: Only exams attached to completed schedules
+        $baseQuery = EntranceExam::with(['applicant.course', 'schedule'])
             ->whereHas('schedule', function ($q) {
-
                 $q->where('status', 'completed');
             });
 
-        $exams = $query
+        // 1. Get global counts for the frontend widgets BEFORE applying filters/search
+        $pendingCount = (clone $baseQuery)->whereNull('exam_score')->count();
+        $evaluatedCount = (clone $baseQuery)->whereNotNull('exam_score')->count();
+
+        // 2. Apply Filters (ungraded vs graded)
+        if ($filter === 'ungraded') {
+            $baseQuery->whereNull('exam_score');
+        } elseif ($filter === 'graded') {
+            $baseQuery->whereNotNull('exam_score');
+        }
+
+        // 3. Apply Search (ID, Applicant Name, or Room)
+        if ($search) {
+            $baseQuery->where(function ($q) use ($search) {
+                $q->where('id', $search)
+                  ->orWhereHas('applicant', function ($qApp) use ($search) {
+                      $qApp->where('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('schedule', function ($qSched) use ($search) {
+                      $qSched->where('room', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // 4. Sort & Paginate: Ungraded first, then newest
+        $exams = $baseQuery
             ->orderByRaw('exam_score IS NOT NULL')
             ->latest('updated_at')
-            ->get();
+            ->paginate($perPage);
 
-        return response()->json($exams);
+        // Return the combined payload
+        return response()->json([
+            'exams' => $exams,
+            'pending_count' => $pendingCount,
+            'evaluated_count' => $evaluatedCount
+        ]);
     }
 }

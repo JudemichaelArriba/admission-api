@@ -12,7 +12,7 @@ use App\Http\Requests\UpdateApplicantRequest;
 
 class ApplicantController extends Controller
 {
-    public function index(ApplicantIndexRequest $request)
+    public function index(Request $request)
     {
         $user = $request->user();
 
@@ -20,13 +20,34 @@ class ApplicantController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $validated = $request->validated();
-        $query = Applicant::with('course')->latest('id');
-        if (isset($validated['status'])) {
-            $query->where('status', $validated['status']);
+        $perPage = $request->input('per_page', 10);
+        $search = $request->input('search');
+        $status = $request->input('status');
+
+        $query = Applicant::with('course');
+
+        // Filter by status if it's not 'all'
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
         }
 
-        return response()->json($query->get());
+        // Search logic for ID, First Name, or Last Name
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('id', $search);
+            });
+        }
+
+        // Prioritize 'pending' applicants to always show first, then sort by newest
+        $query->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->orderBy('id', 'desc');
+
+        // Use Laravel's built-in pagination
+        $applicants = $query->paginate($perPage);
+
+        return response()->json($applicants);
     }
 
     public function show(Request $request, int $id)
