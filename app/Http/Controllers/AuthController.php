@@ -190,7 +190,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid reset token.'], 400);
         }
 
-        if (now()->diffInMinutes($record->created_at) > 60) {
+        if (now()->diffInMinutes($record->created_at) > 15) {
             DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
             return response()->json(['message' => 'This reset token has expired. Please request a new one.'], 400);
         }
