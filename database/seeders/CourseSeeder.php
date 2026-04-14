@@ -10,28 +10,42 @@ class CourseSeeder extends Seeder
 {
     public function run(): void
     {
-
         $apiUrl = env('REGISTRAR_API_URL');
 
-        if ($apiUrl) {
-            $response = Http::get($apiUrl);
+        if (!$apiUrl) {
+            return;
+        }
 
-            if ($response->successful()) {
-                $programs = $response->json();
+        $response = Http::get($apiUrl);
 
-                foreach ($programs as $p) {
-                    Course::updateOrCreate(
-                        ['id' => $p['id']], 
-                        [
-                            'course_code' => $p['course_code'] ?? $p['code'] ?? 'N/A',
-                            'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
-                            'department'  => $p['department'] ?? 'General',
-                            'status'      => $p['status'] ?? 'active',
-                        
-                        ]
-                    );
-                }
+        if (!$response->successful()) {
+            return;
+        }
+
+        $programs = $response->json();
+
+        foreach ($programs as $p) {
+
+            $courseCode = $p['course_code'] ?? $p['code'] ?? null;
+
+            if (!$courseCode) {
+                continue;
             }
+
+            Course::updateOrCreate(
+                [
+                    // ✅ SAFE UNIQUE KEY (prevents duplicates)
+                    'course_code' => $courseCode,
+                ],
+                [
+                    // ✅ External system ID stored safely
+                    'registrar_id' => $p['id'] ?? null,
+
+                    'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
+                    'department'  => $p['department'] ?? 'General',
+                    'status'      => $p['status'] ?? 'active',
+                ]
+            );
         }
     }
 }

@@ -23,7 +23,6 @@ class CoursesController extends Controller
 
         return response()->json($courses, 200);
     }
-
     public function syncFromRegistrar()
     {
         $apiUrl = env('REGISTRAR_API_URL');
@@ -43,7 +42,6 @@ class CoursesController extends Controller
 
             $programs = $response->json();
 
-           
             $incomingCodes = [];
 
             DB::beginTransaction();
@@ -53,16 +51,20 @@ class CoursesController extends Controller
                 $courseCode = $p['course_code'] ?? $p['code'] ?? null;
 
                 if (!$courseCode) {
-                    continue; 
+                    continue;
                 }
 
                 $incomingCodes[] = $courseCode;
 
                 Course::updateOrCreate(
                     [
-                        'course_code' => $courseCode, 
+                        
+                        'course_code' => $courseCode,
                     ],
                     [
+                      
+                        'registrar_id' => $p['id'] ?? null,
+
                         'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
                         'department'  => $p['department'] ?? 'General',
                         'status'      => $p['status'] ?? 'active',
@@ -70,20 +72,22 @@ class CoursesController extends Controller
                 );
             }
 
-           
+          
             Course::whereNotIn('course_code', $incomingCodes)->delete();
 
             DB::commit();
 
-            Cache::put('courses_synced_recently', true, now()->addHours(1));
+            Cache::put('courses_synced_recently', true, now()->addHour());
 
             return true;
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("Course Sync Failed: " . $e->getMessage());
-        }
 
-        return false;
+            DB::rollBack();
+
+            Log::error("Course Sync Failed: " . $e->getMessage());
+
+            return false;
+        }
     }
     public function show(int $id)
     {
