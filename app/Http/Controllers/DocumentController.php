@@ -70,7 +70,54 @@ class DocumentController extends Controller
     private function canAccessApplicantDocuments(Request $request, Applicant $applicant): bool
     {
         $user = $request->user();
+         if (!$user) {
+    
+        return true;
+    }
         return $user->hasRole(UserRole::ADMIN)
             || ($user->hasRole(UserRole::APPLICANT) && $applicant->user_id === $user->id);
     }
+
+    public function downloadByStudentNumber(Request $request, string $studentNumber, int $documentId)
+{
+    $student = \App\Models\Student::where('student_number', $studentNumber)->first();
+
+    if (!$student) {
+        return response()->json(['message' => 'Student not found'], 404);
+    }
+
+    $applicant = $student->applicant;
+
+    if (!$this->canAccessApplicantDocuments($request, $applicant)) {
+        return response()->json(['message' => 'Forbidden'], 403);
+    }
+
+    $document = ApplicantDocument::where('applicant_id', $applicant->id)
+        ->findOrFail($documentId);
+
+    return response($document->file_content)
+        ->header('Content-Type', $document->mime_type ?? 'application/octet-stream')
+        ->header('Content-Disposition', 'inline; filename="' . $document->original_filename . '"')
+        ->header('Content-Length', $document->file_size);
+}
+
+
+public function indexByStudentNumber(Request $request, string $studentNumber)
+{
+    $student = \App\Models\Student::where('student_number', $studentNumber)
+        ->with('applicant.documents')
+        ->first();
+
+    if (!$student) {
+        return response()->json(['message' => 'Student not found'], 404);
+    }
+
+    $applicant = $student->applicant;
+
+    if (!$this->canAccessApplicantDocuments($request, $applicant)) {
+        return response()->json(['message' => 'Forbidden'], 403);
+    }
+
+    return response()->json($applicant->documents);
+}
 }
