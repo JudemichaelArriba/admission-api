@@ -25,6 +25,10 @@ Route::prefix('external')
                 Route::get('/', 'index');
                 Route::get('/{id}', 'show');
             });
+              Route::controller(DocumentController::class)->group(function () {
+                Route::get('/{studentNumber}/documents', 'indexByStudentNumber');
+                Route::get('/{studentNumber}/documents/{documentId}', 'downloadByStudentNumber');
+            });
     });
 
 
