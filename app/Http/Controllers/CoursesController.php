@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class CoursesController extends Controller
 {
@@ -35,33 +36,55 @@ class CoursesController extends Controller
         try {
             $response = Http::get($apiUrl);
 
-            if ($response->successful()) {
-                $programs = $response->json();
+            if (!$response->successful()) {
+                Log::error('Registrar API request failed');
+                return false;
+            }
 
-               
-                foreach ($programs as $p) {
-                    Course::updateOrCreate(
-                        ['id' => $p['id']], 
-                        [
-                            'course_code' => $p['course_code'] ?? $p['code'] ?? 'N/A',
-                            'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
-                            'department'  => $p['department'] ?? 'General',
-                            'status'      => $p['status'] ?? 'active',
-                        ]
-                    );
+            $programs = $response->json();
+
+           
+            $incomingCodes = [];
+
+            DB::beginTransaction();
+
+            foreach ($programs as $p) {
+
+                $courseCode = $p['course_code'] ?? $p['code'] ?? null;
+
+                if (!$courseCode) {
+                    continue; 
                 }
 
-    
-                Cache::put('courses_synced_recently', true, now()->addHours(1));
-                
-                return true;
+                $incomingCodes[] = $courseCode;
+
+                Course::updateOrCreate(
+                    [
+                        'course_code' => $courseCode, 
+                    ],
+                    [
+                        'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
+                        'department'  => $p['department'] ?? 'General',
+                        'status'      => $p['status'] ?? 'active',
+                    ]
+                );
             }
+
+           
+            Course::whereNotIn('course_code', $incomingCodes)->delete();
+
+            DB::commit();
+
+            Cache::put('courses_synced_recently', true, now()->addHours(1));
+
+            return true;
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error("Course Sync Failed: " . $e->getMessage());
         }
+
         return false;
     }
-
     public function show(int $id)
     {
         $course = Course::find($id);

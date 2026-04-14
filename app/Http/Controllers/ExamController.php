@@ -81,7 +81,7 @@ class ExamController extends Controller
 
         return response()->json([
             'message' => 'Exam evaluated successfully',
-            'data' => $exam->fresh(['applicant.course', 'schedule']) // Return fresh data for frontend sync
+            'data' => $exam->fresh(['applicant.course', 'schedule']) 
         ]);
     }
 
@@ -97,24 +97,20 @@ public function evaluationQueue(Request $request)
         $search = $request->input('search');
         $filter = $request->input('filter', 'all');
 
-        // Base query: Only exams attached to completed schedules
         $baseQuery = EntranceExam::with(['applicant.course', 'schedule'])
             ->whereHas('schedule', function ($q) {
                 $q->where('status', 'completed');
             });
 
-        // 1. Get global counts for the frontend widgets BEFORE applying filters/search
         $pendingCount = (clone $baseQuery)->whereNull('exam_score')->count();
         $evaluatedCount = (clone $baseQuery)->whereNotNull('exam_score')->count();
 
-        // 2. Apply Filters (ungraded vs graded)
         if ($filter === 'ungraded') {
             $baseQuery->whereNull('exam_score');
         } elseif ($filter === 'graded') {
             $baseQuery->whereNotNull('exam_score');
         }
 
-        // 3. Apply Search (ID, Applicant Name, or Room)
         if ($search) {
             $baseQuery->where(function ($q) use ($search) {
                 $q->where('id', $search)
@@ -128,13 +124,11 @@ public function evaluationQueue(Request $request)
             });
         }
 
-        // 4. Sort & Paginate: Ungraded first, then newest
         $exams = $baseQuery
             ->orderByRaw('exam_score IS NOT NULL')
             ->latest('updated_at')
             ->paginate($perPage);
 
-        // Return the combined payload
         return response()->json([
             'exams' => $exams,
             'pending_count' => $pendingCount,

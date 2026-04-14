@@ -25,12 +25,11 @@ class ExamScheduleController extends Controller
 
         $query = ExamSchedule::with(['exams.applicant']);
 
-        // Filter by status if it's not 'all'
+     
         if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
 
-        // Search logic for ID, Room, or Exam Date
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('room', 'like', "%{$search}%")
@@ -39,7 +38,7 @@ class ExamScheduleController extends Controller
             });
         }
 
-        // Keep the latest schedules at the top and paginate
+       
         $schedules = $query->latest()->paginate($perPage);
         
         return response()->json($schedules);

@@ -26,12 +26,11 @@ class ApplicantController extends Controller
 
         $query = Applicant::with('course');
 
-        // Filter by status if it's not 'all'
         if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
 
-        // Search logic for ID, First Name, or Last Name
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -40,11 +39,9 @@ class ApplicantController extends Controller
             });
         }
 
-        // Prioritize 'pending' applicants to always show first, then sort by newest
         $query->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('id', 'desc');
 
-        // Use Laravel's built-in pagination
         $applicants = $query->paginate($perPage);
 
         return response()->json($applicants);
