@@ -26,26 +26,42 @@ class CourseSeeder extends Seeder
 
         foreach ($programs as $p) {
 
-            $courseCode = $p['course_code'] ?? $p['code'] ?? null;
+            $courseCode  = $p['course_code'] ?? $p['code'] ?? null;
+            $registrarId = $p['id'] ?? null;
 
             if (!$courseCode) {
                 continue;
             }
 
-            Course::updateOrCreate(
-                [
-                    // ✅ SAFE UNIQUE KEY (prevents duplicates)
-                    'course_code' => $courseCode,
-                ],
-                [
-                    // ✅ External system ID stored safely
-                    'registrar_id' => $p['id'] ?? null,
+            $course = null;
 
+            if ($registrarId) {
+                $course = Course::where('registrar_id', $registrarId)->first();
+            }
+
+            if (!$course) {
+                $course = Course::where('course_code', $courseCode)->first();
+            }
+
+            if ($course) {
+
+                $course->update([
+                    'course_code' => $courseCode,
+                    'registrar_id' => $registrarId ?? $course->registrar_id,
                     'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
                     'department'  => $p['department'] ?? 'General',
                     'status'      => $p['status'] ?? 'active',
-                ]
-            );
+                ]);
+            } else {
+
+                Course::create([
+                    'course_code'  => $courseCode,
+                    'registrar_id' => $registrarId,
+                    'course_name'  => $p['course_name'] ?? $p['name'] ?? 'N/A',
+                    'department'   => $p['department'] ?? 'General',
+                    'status'       => $p['status'] ?? 'active',
+                ]);
+            }
         }
     }
 }

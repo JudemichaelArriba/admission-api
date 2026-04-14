@@ -48,7 +48,8 @@ class CoursesController extends Controller
 
             foreach ($programs as $p) {
 
-                $courseCode = $p['course_code'] ?? $p['code'] ?? null;
+                $courseCode  = $p['course_code'] ?? $p['code'] ?? null;
+                $registrarId = $p['id'] ?? null;
 
                 if (!$courseCode) {
                     continue;
@@ -56,23 +57,42 @@ class CoursesController extends Controller
 
                 $incomingCodes[] = $courseCode;
 
-                Course::updateOrCreate(
-                    [
-                        
+
+                $course = null;
+
+                if ($registrarId) {
+                    $course = Course::where('registrar_id', $registrarId)->first();
+                }
+
+                if (!$course) {
+                    $course = Course::where('course_code', $courseCode)->first();
+                }
+
+
+                if ($course) {
+
+                    $course->update([
                         'course_code' => $courseCode,
-                    ],
-                    [
-                      
-                        'registrar_id' => $p['id'] ?? null,
+
+  
+                        'registrar_id' => $registrarId ?? $course->registrar_id,
 
                         'course_name' => $p['course_name'] ?? $p['name'] ?? 'N/A',
                         'department'  => $p['department'] ?? 'General',
                         'status'      => $p['status'] ?? 'active',
-                    ]
-                );
+                    ]);
+                } else {
+
+                    Course::create([
+                        'course_code'  => $courseCode,
+                        'registrar_id' => $registrarId, 
+                        'course_name'  => $p['course_name'] ?? $p['name'] ?? 'N/A',
+                        'department'   => $p['department'] ?? 'General',
+                        'status'       => $p['status'] ?? 'active',
+                    ]);
+                }
             }
 
-          
             Course::whereNotIn('course_code', $incomingCodes)->delete();
 
             DB::commit();
